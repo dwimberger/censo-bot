@@ -1,0 +1,65 @@
+{
+  "name": "censo-bot",
+  "description": "Censo telegram bot",
+  "version": "1.0.0",
+  "author": "dieter@wimpi.net",
+  "contributors": [
+    {
+      "name": "Dieter Wimberger",
+      "email": "dieter@wimpi.net"
+    }
+  ],
+  "scripts": {
+    "start": "node --optimize_for_size --max_old_space_size=96 --gc_interval=100 app/app.js",
+    "lint": "./node_modules/.bin/jshint app --reporter=./node_modules/jshint-stylish",
+    "checkStyle": "./node_modules/.bin/jscs app",
+    "pretest": "npm run-script lint && npm run-script checkStyle && npm run-script docs",
+    "test": "./node_modules/.bin/istanbul cover --include-all-sources ./node_modules/.bin/jasmine",
+    "docs": "./node_modules/.bin/jsdoc -c ./jsdoc-conf.json"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://dwimberger@github.com/dwimberger/censo-bot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dwimberger/censo-bot/issues"
+  },
+  "keywords": [
+    "censo",
+    "telegram",
+    "bot"
+  ],
+  "dependencies": {
+    "debug": "^2.2.0",
+    "enum": "^2.3.0",
+    "json-templater": "^1.0.4",
+    "mivir-telegram-bot-api": "^2.1.2",
+    "moment": "^2.11.0",
+    "mongodb": "^2.2.11",
+    "request": "^2.79.0"
+  },
+  "devDependencies": {
+    "ink-docstrap": "^1.1.0",
+    "istanbul": "^0.4.1",
+    "jasmine": "^2.4.1",
+    "jasmine-reporters": "^2.0.8",
+    "jscs2": "^1.13.2",
+    "jsdoc": "^3.4.0",
+    "jshint": "^2.8.0",
+    "jshint-stylish": "^2.1.0"
+  },
+  "jscsConfig": {
+    "preset": "google",
+    "jsDoc": {
+      "checkAnnotations": "jsdoc3",
+      "checkTypes": "strictNativeCase",
+      "extra": {
+        "module": false
+      }
+    }
+  },
+  "engines": {
+    "node": "0.12.x"
+  },
+  "license": "MIT"
+}
