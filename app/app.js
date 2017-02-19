@@ -7,11 +7,13 @@ var paramTypes = require('mivir-telegram-bot-api').paramTypes;
 var startHandler = require('./start');
 var adminHandler = require('./admin');
 var request = require('request');
+var moment = require('moment');
 var render = require('json-templater/string');
 var noVerifyTemplate =
 '{{name}}\n' +
 '🏷  {{inventoryNumber}}\n' +
 '📋  {{description}}\n' +
+'🏢  {{department}}\n' +
 '🗄  {{storage}}\n' +
 '🤝  {{caretaker}}\n';
 
@@ -19,6 +21,7 @@ var verifyTemplate =
 '{{name}}\n' +
 '🏷  {{inventoryNumber}}\n' +
 '📋  {{description}}\n' +
+'🏢  {{department}}\n' +
 '🗄  {{storage}}\n' +
 '🤝  {{caretaker}}\n' +
 '🕑  {{verificationDate}}\n';
@@ -135,6 +138,12 @@ function handlePhoto(bot, message) {
                           var uuid = parts[Math.max(0, parts.length - 1)];
                           debug('\n\nUUID = %j', uuid);
                           mongo.getItemByUUID(uuid, function(err, data) {
+                            var template = noVerifyTemplate;
+                            if (data.requiresVerification) {
+                              template = verifyTemplate;
+                              var vd = moment(data.verificationDate).format('MM/DD/YYYY');
+                              data.verificationDate = vd;
+                            }
                             if (!err) {
                               debug('ITEM: %j', data);
                               var template = (data.requiresVerification) ?
