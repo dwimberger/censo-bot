@@ -1,7 +1,4 @@
 var debug = require('debug')('app');
-var BOT_TOKEN;
-var BOT_HOOK_TOKEN;
-
 var Bot = require('mivir-telegram-bot-api').Bot;
 var paramTypes = require('mivir-telegram-bot-api').paramTypes;
 var startHandler = require('./start');
@@ -26,8 +23,12 @@ var verifyTemplate =
 '🤝  {{caretaker}}\n' +
 '🕑  {{verificationDate}}\n';
 
+var BOT_TOKEN;
+
 // Connect mongo database
 var mongoService = process.env.MONGO_URL;
+// Connect for QR service
+var qrService = process.env.QR_SERVICE_URL;
 
 // Mongo DB service
 var mongo = require('./mongo');
@@ -117,7 +118,7 @@ function handlePhoto(bot, message) {
       var furl = 'https://api.telegram.org/file/bot' +
                     BOT_TOKEN + '/' + data.result.file_path;
       request.post({
-          url: 'http://localhost:32776/qr',
+          url: qrService,
           formData: {
             image: {
                 value:  request(furl),
@@ -130,38 +131,48 @@ function handlePhoto(bot, message) {
                 }
               }
           }
-        }, function(err, response, body) {
-                      if (response.statusCode === 200) {
-                        if (body) {
-                          var result = JSON.parse(body);
-                          var parts = result.res.split('/');
-                          var uuid = parts[Math.max(0, parts.length - 1)];
-                          debug('\n\nUUID = %j', uuid);
-                          mongo.getItemByUUID(uuid, function(err, data) {
-                            var template = noVerifyTemplate;
-                            if (data.requiresVerification) {
-                              template = verifyTemplate;
-                              var vd = moment(data.verificationDate).format('MM/DD/YYYY');
-                              data.verificationDate = vd;
-                            }
-                            if (!err) {
-                              debug('ITEM: %j', data);
-                              var template = (data.requiresVerification) ?
-                                verifyTemplate : noVerifyTemplate;
-                              bot.sendMessage(
-                               message.chat.id,
-                               render(template, data),
-                               {
-                                  parseMode: 'Markdown'
-                                }
-                              );
-                            }
-                          });
-                        } else {
-                          bot.sendMessage(message.chat.id, 'Failed to decode.');
+        },
+        function(err, response, body) {
+                if (response.statusCode === 200) {
+                  if (!err && body) {
+                    var result = JSON.parse(body);
+                    var parts = result.res.split('/');
+                    var uuid = parts[Math.max(0, parts.length - 1)];
+                    debug('\n\nUUID = %j', uuid);
+                    mongo.getItemByUUID(uuid, function(merr, data) {
+                      if (!merr) {
+                        var template = noVerifyTemplate;
+                        if (data.requiresVerification) {
+                          template = verifyTemplate;
+                          var vd = moment(data.verificationDate)
+                            .format('MM/DD/YYYY');
+                          data.verificationDate = vd;
                         }
+                        debug('ITEM: %j', data);
+                        var template = (data.requiresVerification) ?
+                          verifyTemplate : noVerifyTemplate;
+                        bot.sendMessage(
+                         message.chat.id,
+                         render(template, data),
+                         {
+                            parseMode: 'Markdown'
+                          }
+                        );
+                      } else {
+                        bot.sendMessage(
+                          message.chat.id, 'Error trying to decode.'
+                        );
                       }
                     });
+                  } else {
+                    bot.sendMessage(
+                      message.chat.id, 'Error trying to decode.'
+                    );
+                  }
+                } else {
+                  bot.sendMessage(message.chat.id, 'Failed to decode.');
+                }
+              });
     });
 }
 // Photo Handler

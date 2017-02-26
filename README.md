@@ -22,4 +22,5 @@ You will need to set environment variables to have this up and running
 1. Mongo DB: `-e "MONGO_URL=mongodb://localhost:32769/censo"`
 2. Telegram Bot Token: `-e BOT_TOKEN=<xyz>`
 3. Telegram Admin ID: `-e TELEGRAM_ADMIN_ID=<xyz>`
-4. Debug Logs: `-e "DEBUG=app,mongo"`
+4. QR Service: `-e "QR_SERVICE_URL=http://localhost:32776/qr"`
+5. Debug Logs: `-e "DEBUG=app,mongo"`
