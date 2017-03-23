@@ -79,7 +79,7 @@ var disconnect = function(callback) {
 
 var ensureIndices = function() {
   if (usersC) {
-    usersC.ensureIndex({'services.telegram.uuid': 1}, {unique: true});
+    usersC.ensureIndex({'services.telegram.uuid': 1});
     usersC.ensureIndex({'services.telegram.username': 1});
   }
   if (itemsC) {
