@@ -1,34 +1,16 @@
 var debug = require('debug')('app');
-var Bot = require('mivir-telegram-bot-api').Bot;
-var paramTypes = require('mivir-telegram-bot-api').paramTypes;
-var startHandler = require('./start');
-var adminHandler = require('./admin');
-var request = require('request');
-var moment = require('moment');
-var render = require('json-templater/string');
-var noVerifyTemplate =
-'{{name}}\n' +
-'🏷  {{inventoryNumber}}\n' +
-'📋  {{description}}\n' +
-'🏢  {{department}}\n' +
-'🗄  {{storage}}\n' +
-'🤝  {{caretaker}}\n';
 
-var verifyTemplate =
-'{{name}}\n' +
-'🏷  {{inventoryNumber}}\n' +
-'📋  {{description}}\n' +
-'🏢  {{department}}\n' +
-'🗄  {{storage}}\n' +
-'🤝  {{caretaker}}\n' +
-'🕑  {{verificationDate}}\n';
+const Telegraf = require('telegraf');
+const commandParts = require('telegraf-command-parts');
+const startHandler = require('./start');
+const adminHandler = require('./admin');
+const itemsHandler = require('./items');
+const ADMIN_ID = 140897148;
 
 var BOT_TOKEN;
 
 // Connect mongo database
 var mongoService = process.env.MONGO_URL;
-// Connect for QR service
-var qrService = process.env.QR_SERVICE_URL;
 
 // Mongo DB service
 var mongo = require('./mongo');
@@ -52,9 +34,7 @@ mongo.connect(
 
 );
 
-// Setup polling way
-var bot = new Bot(BOT_TOKEN);
-
+//Exit handlers
 function exitHandler(options, err) {
   if (options.cleanup) {
     console.log('Quitting and Cleaning up');
@@ -77,113 +57,21 @@ process.on('SIGINT', exitHandler.bind(null, {exit: true}));
 //catches uncaught exceptions
 process.on('uncaughtException', exitHandler.bind(null, {exit: true}));
 
-function ensureUser(bot, msg, level, callback) {
-  if (level === undefined) {
-    level = 1;
-  }
-  mongo.hasConfirmedUserWithLevel(msg.from.id, level, function(result) {
-    if (!result) {
-      bot.sendMessage(
-        msg.chat.id,
-        'I am sorry, but you are not authorized to ask me for this. ' +
-        'Please use /start and wait for confirmation.'
-      );
-    }
-    callback(result);
-  });
-}
+// Setup bot
+const bot = new Telegraf(BOT_TOKEN);
+// Install middleware
+bot.use(commandParts());
 
-// ECHO Handler: Matches /e [whatever]
-bot.onCommand('e', [paramTypes.REST],
-    function(bot, msg, params, next, done) {
-  var fromId = msg.from.id;
-  var resp = params[0];
-  bot.sendMessage(fromId, resp);
-  done();
-});
-
-// START handler Matches /start
-bot.onCommand('start', [paramTypes.WORD],
-    function(bot, msg, params, next, done) {
-  startHandler.handle(bot, mongo, msg, params);
-  done();
-});
-
-function handlePhoto(bot, message) {
-  // jscs:disable requireCamelCaseOrUpperCaseIdentifiers
-  var file =
-    bot.getFile(message.photo[Math.max(0, message.photo.length - 1)].file_id);
-  file.then(
-    function(data) {
-      var furl = 'https://api.telegram.org/file/bot' +
-                    BOT_TOKEN + '/' + data.result.file_path;
-      request.post({
-          url: qrService,
-          formData: {
-            image: {
-                value:  request(furl),
-                options: {
-                  filename: 'image.jpg',
-                  contentType: 'image/jpg',
-                  contentLength: data.result.file_size
-                  // jscs:enable requireCamelCaseOrUpperCaseIdentifiers
-
-                }
-              }
-          }
-        },
-        function(err, response, body) {
-                if (response.statusCode === 200) {
-                  if (!err && body) {
-                    var result = JSON.parse(body);
-                    var parts = result.res.split('/');
-                    var uuid = parts[Math.max(0, parts.length - 1)];
-                    debug('\n\nUUID = %j', uuid);
-                    mongo.getItemByUUID(uuid, function(merr, data) {
-                      if (!merr) {
-                        var template = noVerifyTemplate;
-                        if (data.requiresVerification) {
-                          template = verifyTemplate;
-                          var vd = moment(data.verificationDate)
-                            .format('MM/DD/YYYY');
-                          data.verificationDate = vd;
-                        }
-                        debug('ITEM: %j', data);
-                        var template = (data.requiresVerification) ?
-                          verifyTemplate : noVerifyTemplate;
-                        bot.sendMessage(
-                         message.chat.id,
-                         render(template, data),
-                         {
-                            parseMode: 'Markdown'
-                          }
-                        );
-                      } else {
-                        bot.sendMessage(
-                          message.chat.id, 'Error trying to decode.'
-                        );
-                      }
-                    });
-                  } else {
-                    bot.sendMessage(
-                      message.chat.id, 'Error trying to decode.'
-                    );
-                  }
-                } else {
-                  bot.sendMessage(message.chat.id, 'Failed to decode.');
-                }
-              });
-    });
-}
-// Photo Handler
-bot.on('photo', function(bot, message, next, done) {
-    ensureUser(bot, message, 20, function(allowed) {
-      if (allowed) {
-        handlePhoto(bot, message);
-      }
-      done();
-    });
-  });
-
-// Register Admin Handler
+// Register actions
+startHandler.registerActions(bot, mongo);
 adminHandler.registerActions(bot, mongo);
+itemsHandler.registerActions(bot, mongo);
+
+// Echo handler for bot monitoring /e [whatever]
+bot.command('e', (ctx) => ctx.reply(ctx.state.command.args));
+
+// Filter for short text messages
+bot.filter(({message}) => !message || message.text.length > 2);
+
+// Start polling
+bot.startPolling();

@@ -1,17 +1,22 @@
 var debug = require('debug')('start');
 var moment = require('moment');
-var ADMIN_ID = 140897148;
+const ADMIN_ID = parseInt(process.env.TELEGRAM_ADMIN_ID);
 
-exports.handle = function(bot, mongo, msg, params) {
+var _mongo;
 
+function handleStart(ctx) {
   var timestamp = moment.unix(msg.date);
-  console.log('msg=%j params=%j', msg, params);
-  mongo.hasWebUser(params[0], function(userExists) {
+  var params = ctx.state.command.splitArgs;
+  debug('handleStart msg=%j params=%j', ctx.message, params);
+  if (params[0] === '') {
+    ctx.reply('Please start from the weblink in Censo, thank you.');
+    return;
+  }
+  _mongo.hasWebUser(params[0], function(userExists) {
     debug('User exists? %d %j', msg.from.id, userExists);
     debug('%j', msg);
     if (!userExists) {
-      bot.sendMessage(
-        msg.chat.id,
+      ctx.reply(
         // jscs:disable requireCamelCaseOrUpperCaseIdentifiers
         'Hello ' + msg.from.first_name + ' please visit from the web.'
         // jscs:enable requireCamelCaseOrUpperCaseIdentifiers
@@ -21,12 +26,12 @@ exports.handle = function(bot, mongo, msg, params) {
     debug('params = %j', params);
     var q = {_id: params[0]};
     debug('q %j', q);
-    mongo.getUser(q, function(err, user) {
+    _mongo.getUser(q, function(err, user) {
       if (err) {
         debug('Failed %j', err);
         return;
       }
-      console.log('User is %j', user);
+      debug('User is %j', user);
       user.services.telegram = {
           uuid: msg.from.id,
           username: msg.from.username,
@@ -36,23 +41,28 @@ exports.handle = function(bot, mongo, msg, params) {
         };
       user.profile.confirmed = false;
       user.profile.level = 0;
-      console.log('Updating user to %j', user);
-      mongo.updateUser(q, user, function(err) {
+      debug('Updating user to %j', user);
+      _mongo.updateUser(q, user, function(err) {
         if (err) {
           debug(err);
         } else {
           // jscs:disable requireCamelCaseOrUpperCaseIdentifiers
           //notify user
-          bot.sendMessage(msg.chat.id, 'Hello ' + msg.chat.first_name);
+          ctx.reply('Hello ' + msg.chat.first_name);
           //notify admin
-          bot.sendMessage(
+          ctx.telegram.sendMessage(
             ADMIN_ID, msg.from.first_name +
-            ' (' + msg.from.username + ') has joined and needs confirmation'
+            ' (' + msg.from.username + ') has joined and needs confirmation.'
           );
           // jscs:enable requireCamelCaseOrUpperCaseIdentifiers
         }
-      });
-    });
-  });
+      });//mongo.updateUser
+    });//mongo.getUser
+  });//mongo.hasWebUser
 
 };
+
+exports.registerActions = function(bot, mongo) {
+  _mongo = mongo;
+  bot.command('start', (ctx) => handleStart(ctx));
+};//registerActions

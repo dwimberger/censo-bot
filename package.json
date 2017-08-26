@@ -11,7 +11,7 @@
   ],
   "scripts": {
     "start": "node --optimize_for_size --max_old_space_size=96 --gc_interval=100 app/app.js",
-    "lint": "./node_modules/.bin/jshint app --reporter=./node_modules/jshint-stylish",
+    "lint": "./node_modules/.bin/jshint app --reporter=./node_modules/jshint-stylish --config ./jshint-options.json",
     "checkStyle": "./node_modules/.bin/jscs app",
     "pretest": "npm run-script lint && npm run-script checkStyle && npm run-script docs",
     "test": "./node_modules/.bin/istanbul cover --include-all-sources ./node_modules/.bin/jasmine",
@@ -33,10 +33,11 @@
     "debug": "^2.2.0",
     "enum": "^2.3.0",
     "json-templater": "^1.0.4",
-    "mivir-telegram-bot-api": "^2.1.2",
     "moment": "^2.11.0",
     "mongodb": "^2.2.11",
-    "request": "^2.79.0"
+    "request": "^2.79.0",
+    "telegraf": "^3.10.1",
+    "telegraf-command-parts": "^1.0.3"
   },
   "devDependencies": {
     "ink-docstrap": "^1.1.0",
